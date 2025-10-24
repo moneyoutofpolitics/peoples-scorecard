@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The People's Scorecard - Campaign Finance Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .search-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .search-form {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        input, select, button {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .results-card.visible {
+            display: block;
+        }
+        
+        .candidate-list {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .candidate-item {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .candidate-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .candidate-info h3 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .candidate-info p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .party-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .party-dem {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .party-rep {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .party-other {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .analyze-btn {
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+        
+        .analysis-result {
+            display: none;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .analysis-result.visible {
+            display: block;
+        }
+        
+        .big-money-display {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .big-money-percentage {
+            font-size: 4em;
+            font-weight: 700;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .breakdown-item {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .breakdown-item h4 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .breakdown-item .amount {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .warning {
+            background: #fff3e0;
+            color: #e65100;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .note {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 The People's Scorecard</h1>
+            <p>Track Big Money Influence in Federal Campaigns</p>
+        </div>
+        
+        <div class="search-card">
+            <h2 style="margin-bottom: 20px;">Search Federal Candidates</h2>
+            <form class="search-form" id="searchForm">
+                <div class="form-row">
+                    <input 
+                        type="text" 
+                        id="candidateName" 
+                        placeholder="Enter candidate name..." 
+                        required
+                    >
+                    <select id="office">
+                        <option value="">All Offices</option>
+                        <option value="H">House</option>
+                        <option value="S">Senate</option>
+                    </select>
+                    <select id="cycle">
+                        <option value="2026">2026</option>
+                        <option value="2024">2024</option>
+                    </select>
+                </div>
+                <button type="submit" id="searchBtn">Search Candidates</button>
+            </form>
+            
+            <div id="searchResults"></div>
+        </div>
+        
+        <div class="results-card" id="resultsCard">
+            <h2 style="margin-bottom: 20px;">Select a Candidate to Analyze</h2>
+            <div class="candidate-list" id="candidateList"></div>
+            <div class="analysis-result" id="analysisResult"></div>
+        </div>
+    </div>
+    
+    <script>
+        const searchForm = document.getElementById('searchForm');
+        const searchBtn = document.getElementById('searchBtn');
+        const resultsCard = document.getElementById('resultsCard');
+        const candidateList = document.getElementById('candidateList');
+        const analysisResult = document.getElementById('analysisResult');
+        
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('candidateName').value;
+            const office = document.getElementById('office').value;
+            const cycle = document.getElementById('cycle').value;
+            
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            candidateList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching FEC database...</p></div>';
+            resultsCard.classList.add('visible');
+            analysisResult.classList.remove('visible');
+            
+            try {
+                const response = await fetch(`/api/search_candidates?name=${encodeURIComponent(name)}&office=${office}&cycle=${cycle}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    candidateList.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.results.length === 0) {
+                    candidateList.innerHTML = '<div class="warning">No candidates found. Try a different search.</div>';
+                    return;
+                }
+                
+                displayCandidates(data.results);
+            } catch (error) {
+                candidateList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search Candidates';
+            }
+        });
+        
+        function displayCandidates(candidates) {
+            candidateList.innerHTML = '';
+            
+            candidates.forEach(candidate => {
+                const item = document.createElement('div');
+                item.className = 'candidate-item';
+                
+                const partyClass = candidate.party === 'DEM' ? 'party-dem' : 
+                                  candidate.party === 'REP' ? 'party-rep' : 'party-other';
+                
+                const district = candidate.district ? ` - District ${candidate.district}` : '';
+                
+                item.innerHTML = `
+                    <div class="candidate-info">
+                        <h3>${candidate.name}</h3>
+                        <p>${candidate.office_full} - ${candidate.state}${district}</p>
+                    </div>
+                    <span class="party-badge ${partyClass}">${candidate.party}</span>
+                    <button class="analyze-btn" onclick="analyzeCandidate('${candidate.candidate_id}', '${candidate.name}')">
+                        Analyze
+                    </button>
+                `;
+                
+                candidateList.appendChild(item);
+            });
+        }
+        
+        async function analyzeCandidate(candidateId, candidateName) {
+            analysisResult.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing contribution data from FEC...</p></div>';
+            analysisResult.classList.add('visible');
+            
+            const cycle = document.getElementById('cycle').value;
+            
+            try {
+                const response = await fetch(`/api/analyze_candidate?candidate_id=${candidateId}&cycle=${cycle}&max_pages=10`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    analysisResult.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.warning) {
+                    analysisResult.innerHTML = `
+                        <div class="warning">
+                            <strong>${data.candidate.name}</strong><br>
+                            ${data.warning}
+                        </div>
+                    `;
+                    return;
+                }
+                
+                displayAnalysis(data);
+            } catch (error) {
+                analysisResult.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displayAnalysis(data) {
+            const { candidate, analysis, note } = data;
+            
+            analysisResult.innerHTML = `
+                <h2 style="margin-bottom: 30px;">${candidate.name} (${candidate.party})</h2>
+                
+                <div class="big-money-display">
+                    <h3 style="font-size: 1.5em; margin-bottom: 10px;">Big Money Percentage</h3>
+                    <div class="big-money-percentage">${analysis.big_money_percentage}%</div>
+                    <p style="font-size: 1.2em; opacity: 0.9;">of non-grassroots contributions</p>
+                </div>
+                
+                <div class="breakdown">
+                    <div class="breakdown-item">
+                        <h4>Total Raised</h4>
+                        <div class="amount">$${analysis.total_contributions.toLocaleString()}</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <h4>Big Money (PACs + Large Donors)</h4>
+                        <div class="amount">$${analysis.big_money_amount.toLocaleString()}</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <h4>Small Donors (&lt;$200)</h4>
+                        <div class="amount">$${analysis.small_donor_amount.toLocaleString()}</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <h4>Self-Funding</h4>
+                        <div class="amount">$${analysis.self_funding_amount.toLocaleString()}</div>
+                    </div>
+                </div>
+                
+                <div class="note">
+                    ${note}<br>
+                    This analysis excludes small donors (under $200), self-funding, and conduit contributions (ActBlue/WinRed).
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
