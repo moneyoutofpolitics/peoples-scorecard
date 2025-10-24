@@ -370,7 +370,7 @@
                         <p>${candidate.office_full} - ${candidate.state}${district}</p>
                     </div>
                     <span class="party-badge ${partyClass}">${candidate.party}</span>
-                    <button class="analyze-btn" onclick="analyzeCandidate('${candidate.candidate_id}', '${candidate.name}')">
+                    <button class="analyze-btn" onclick="analyzeCandidate('${candidate.candidate_id}', '${candidate.name}', '${candidate.party}', '${candidate.state}')">
                         Analyze
                     </button>
                 `;
@@ -379,14 +379,14 @@
             });
         }
         
-        async function analyzeCandidate(candidateId, candidateName) {
+        async function analyzeCandidate(candidateId, candidateName, candidateParty, candidateState) {
             analysisResult.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing contribution data from FEC...</p></div>';
             analysisResult.classList.add('visible');
             
             const cycle = document.getElementById('cycle').value;
             
             try {
-                const response = await fetch(`/api/analyze_candidate?candidate_id=${candidateId}&cycle=${cycle}&max_pages=10`);
+                const response = await fetch(`/api/analyze_candidate?candidate_id=${candidateId}&cycle=${cycle}&max_pages=10&name=${encodeURIComponent(candidateName)}&party=${candidateParty}&state=${candidateState}`);
                 const data = await response.json();
                 
                 if (data.error) {
