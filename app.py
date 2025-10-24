@@ -63,24 +63,13 @@ def analyze_candidate():
         return jsonify({'error': 'candidate_id parameter required'}), 400
     
     try:
-        # Get candidate info
-        candidates = fetcher.search_candidates(name='', cycle=cycle)
-        candidate = next((c for c in candidates if c['candidate_id'] == candidate_id), None)
-        
-        if not candidate:
-            return jsonify({'error': 'Candidate not found'}), 404
-        
-        # Get committees
+        # Get committees directly - we don't need to search again since we have the ID
         committees = fetcher.get_candidate_committees(candidate_id, cycle=cycle)
         
         if not committees:
             return jsonify({
                 'error': 'No committees found for this candidate',
-                'candidate': {
-                    'name': candidate['name'],
-                    'party': candidate.get('party'),
-                    'state': candidate.get('state')
-                }
+                'candidate_id': candidate_id
             }), 404
         
         # Get receipts from principal committee
@@ -94,30 +83,20 @@ def analyze_candidate():
         if not receipts:
             return jsonify({
                 'warning': 'No contribution data available yet for this candidate',
-                'candidate': {
-                    'name': candidate['name'],
-                    'party': candidate.get('party'),
-                    'state': candidate.get('state'),
-                    'office': candidate.get('office_full')
-                },
                 'committee': {
                     'name': principal_committee['name'],
                     'id': principal_committee['committee_id']
                 }
             })
         
-        # Calculate analysis
-        analysis = calculate_big_money_percentage(receipts, candidate['name'])
+        # Calculate analysis - use committee name as fallback for candidate name
+        candidate_name = principal_committee.get('candidate_name', '')
+        analysis = calculate_big_money_percentage(receipts, candidate_name)
         
         # Format response
         return jsonify({
             'candidate': {
-                'id': candidate_id,
-                'name': candidate['name'],
-                'party': candidate.get('party'),
-                'state': candidate.get('state'),
-                'district': candidate.get('district'),
-                'office': candidate.get('office_full')
+                'id': candidate_id
             },
             'committee': {
                 'name': principal_committee['name'],
