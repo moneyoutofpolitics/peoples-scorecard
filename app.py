@@ -56,6 +56,9 @@ def search_candidates():
 def analyze_candidate():
     """API endpoint to analyze a specific candidate"""
     candidate_id = request.args.get('candidate_id', '')
+    candidate_name = request.args.get('name', '')
+    candidate_party = request.args.get('party', '')
+    candidate_state = request.args.get('state', '')
     cycle = int(request.args.get('cycle', 2026))
     max_pages = int(request.args.get('max_pages', 10))
     
@@ -89,14 +92,16 @@ def analyze_candidate():
                 }
             })
         
-        # Calculate analysis - use committee name as fallback for candidate name
-        candidate_name = principal_committee.get('candidate_name', '')
+        # Calculate analysis - use the name passed from frontend
         analysis = calculate_big_money_percentage(receipts, candidate_name)
         
         # Format response
         return jsonify({
             'candidate': {
-                'id': candidate_id
+                'id': candidate_id,
+                'name': candidate_name,
+                'party': candidate_party,
+                'state': candidate_state
             },
             'committee': {
                 'name': principal_committee['name'],
