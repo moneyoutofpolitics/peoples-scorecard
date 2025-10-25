@@ -137,79 +137,155 @@ class FECDataFetcher:
 
 def calculate_big_money_percentage(receipts: List[Dict], candidate_name: str = "") -> Dict:
     """
-    Calculate what percentage of contributions come from "big money"
+    Calculate comprehensive breakdown of contributions by entity type
     
-    Excludes:
-    - Self-funding (contributions from the candidate)
-    - Small donors (under $200)
-    - ActBlue and WinRed conduit contributions
+    Returns both:
+    1. Big money percentage (excludes grassroots <$200, self-funding, conduits)
+    2. Detailed breakdown of ALL contributions by entity type with no exclusions
     
     Args:
         receipts: List of contribution records from FEC
         candidate_name: Name of candidate to identify self-funding
         
     Returns:
-        Dictionary with breakdown of contribution sources
+        Dictionary with big money percentage and detailed breakdown
     """
-    total_amount = 0
-    small_donor_amount = 0
-    self_funding_amount = 0
-    conduit_amount = 0
-    big_money_amount = 0
+    # Initialize counters for detailed breakdown
+    breakdown = {
+        'pacs': 0,
+        'party_committees': 0,
+        'other_candidates': 0,
+        'organizations': 0,
+        'large_individual_donors': 0,
+        'small_individual_donors': 0,
+        'self_funding': 0,
+        'conduits': 0,
+        'unknown': 0
+    }
     
     # Common conduit organizations
     conduits = ['ACTBLUE', 'WINRED', 'ACT BLUE', 'WIN RED']
     
+    # Process each receipt
     for receipt in receipts:
-        amount = receipt.get('contribution_receipt_amount', 0)
-        if amount <= 0:  # Skip refunds and zero amounts
-            continue
-            
-        contributor_name = (receipt.get('contributor_name') or '').upper()
+        amount = float(receipt.get('contribution_receipt_amount', 0))
+        entity_type = receipt.get('entity_type', '').upper()
+        contributor_name = receipt.get('contributor_name', '').upper()
         
-        # Check if it's self-funding
+        # Skip if no amount or negative (refunds)
+        if amount <= 0:
+            continue
+        
+        # Check for conduits (ActBlue/WinRed)
+        is_conduit = any(conduit in contributor_name for conduit in conduits)
+        if is_conduit:
+            breakdown['conduits'] += amount
+            continue
+        
+        # Check for self-funding (candidate's own money)
         is_self_funded = False
         if candidate_name:
             candidate_last_name = candidate_name.split()[-1].upper()
-            if candidate_last_name in contributor_name:
+            if candidate_last_name in contributor_name or entity_type == 'CAN':
                 is_self_funded = True
-                self_funding_amount += amount
+                breakdown['self_funding'] += amount
+                continue
         
-        # Check if it's a conduit (ActBlue/WinRed)
-        is_conduit = any(conduit in contributor_name for conduit in conduits)
-        if is_conduit:
-            conduit_amount += amount
-        
-        # Check if it's a small donor (under $200)
-        elif amount < 200:
-            small_donor_amount += amount
-        
-        # Everything else is "big money" (PACs, large donors, etc.)
-        elif not is_self_funded:
-            big_money_amount += amount
-            
-        total_amount += amount
+        # Categorize by entity type
+        if entity_type == 'PAC':
+            breakdown['pacs'] += amount
+        elif entity_type == 'PTY':
+            breakdown['party_committees'] += amount
+        elif entity_type == 'CCM':
+            breakdown['other_candidates'] += amount
+        elif entity_type == 'ORG':
+            breakdown['organizations'] += amount
+        elif entity_type == 'IND':
+            # Split individuals by amount
+            if amount >= 200:
+                breakdown['large_individual_donors'] += amount
+            else:
+                breakdown['small_individual_donors'] += amount
+        else:
+            # Unknown entity type
+            breakdown['unknown'] += amount
     
-    # Calculate percentages
-    grassroots_total = small_donor_amount
-    excluded_total = self_funding_amount + conduit_amount + small_donor_amount
-    countable_total = total_amount - excluded_total
+    # Calculate totals
+    total_raised = sum(breakdown.values())
     
-    big_money_percentage = 0
+    # Calculate "Big Money" (PACs + Party + Other Candidates + Orgs + Large Donors)
+    big_money = (
+        breakdown['pacs'] +
+        breakdown['party_committees'] +
+        breakdown['other_candidates'] +
+        breakdown['organizations'] +
+        breakdown['large_individual_donors']
+    )
+    
+    # Combine conduits with small donors (both are grassroots)
+    grassroots_total = breakdown['small_individual_donors'] + breakdown['conduits']
+    
+    # Calculate big money percentage (out of total raised - no exclusions except self-funding)
+    countable_total = total_raised - breakdown['self_funding']
+    
     if countable_total > 0:
-        big_money_percentage = (big_money_amount / countable_total) * 100
+        big_money_percentage = round((big_money / countable_total) * 100, 1)
+    else:
+        big_money_percentage = 0
+    
+    # Calculate percentages for each category (out of total raised - no exclusions)
+    breakdown_percentages = {}
+    if total_raised > 0:
+        for key, value in breakdown.items():
+            breakdown_percentages[key] = round((value / total_raised) * 100, 1)
+    else:
+        breakdown_percentages = {key: 0 for key in breakdown.keys()}
     
     return {
-        'total_contributions': total_amount,
+        'big_money_percentage': big_money_percentage,
+        'total_raised': round(total_raised, 2),
+        'big_money_amount': round(big_money, 2),
+        'grassroots_amount': round(grassroots_total, 2),
+        'self_funding_amount': round(breakdown['self_funding'], 2),
         'total_receipts': len(receipts),
-        'small_donor_amount': small_donor_amount,
-        'self_funding_amount': self_funding_amount,
-        'conduit_amount': conduit_amount,
-        'big_money_amount': big_money_amount,
-        'excluded_amount': excluded_total,
-        'countable_total': countable_total,
-        'big_money_percentage': round(big_money_percentage, 2),
-        'grassroots_percentage': round((grassroots_total / total_amount * 100) if total_amount > 0 else 0, 2)
+        'breakdown': {
+            'pacs': {
+                'amount': round(breakdown['pacs'], 2),
+                'percentage': breakdown_percentages['pacs']
+            },
+            'party_committees': {
+                'amount': round(breakdown['party_committees'], 2),
+                'percentage': breakdown_percentages['party_committees']
+            },
+            'other_candidates': {
+                'amount': round(breakdown['other_candidates'], 2),
+                'percentage': breakdown_percentages['other_candidates']
+            },
+            'organizations': {
+                'amount': round(breakdown['organizations'], 2),
+                'percentage': breakdown_percentages['organizations']
+            },
+            'large_individual_donors': {
+                'amount': round(breakdown['large_individual_donors'], 2),
+                'percentage': breakdown_percentages['large_individual_donors']
+            },
+            'small_individual_donors': {
+                'amount': round(breakdown['small_individual_donors'], 2),
+                'percentage': breakdown_percentages['small_individual_donors']
+            },
+            'self_funding': {
+                'amount': round(breakdown['self_funding'], 2),
+                'percentage': breakdown_percentages['self_funding']
+            },
+            'conduits': {
+                'amount': round(breakdown['conduits'], 2),
+                'percentage': breakdown_percentages['conduits']
+            },
+            'grassroots_combined': {
+                'amount': round(grassroots_total, 2),
+                'percentage': round((grassroots_total / total_raised * 100) if total_raised > 0 else 0, 1)
+            }
+        }
     }
 
 
@@ -250,16 +326,25 @@ if __name__ == "__main__":
                 print("\n" + "="*60)
                 print(f"ANALYSIS FOR {candidate['name']}")
                 print("="*60)
-                print(f"Total Contributions: ${analysis['total_contributions']:,.2f}")
+                print(f"Total Raised: ${analysis['total_raised']:,.2f}")
                 print(f"Total Receipt Records: {analysis['total_receipts']}")
-                print(f"\nBreakdown:")
-                print(f"  Small Donors (<$200): ${analysis['small_donor_amount']:,.2f} ({analysis['grassroots_percentage']}%)")
-                print(f"  Self-Funding: ${analysis['self_funding_amount']:,.2f}")
-                print(f"  Conduit (ActBlue/WinRed): ${analysis['conduit_amount']:,.2f}")
-                print(f"  Big Money (PACs + Large Donors): ${analysis['big_money_amount']:,.2f}")
+                
                 print(f"\n{'='*60}")
                 print(f"BIG MONEY PERCENTAGE: {analysis['big_money_percentage']}%")
+                print(f"(excludes small donors, self-funding, conduits)")
                 print(f"{'='*60}")
+                
+                print(f"\nDetailed Breakdown:")
+                breakdown = analysis['breakdown']
+                print(f"  PACs: ${breakdown['pacs']['amount']:,.2f} ({breakdown['pacs']['percentage']}%)")
+                print(f"  Party Committees: ${breakdown['party_committees']['amount']:,.2f} ({breakdown['party_committees']['percentage']}%)")
+                print(f"  Other Candidates: ${breakdown['other_candidates']['amount']:,.2f} ({breakdown['other_candidates']['percentage']}%)")
+                print(f"  Organizations: ${breakdown['organizations']['amount']:,.2f} ({breakdown['organizations']['percentage']}%)")
+                print(f"  Large Individual Donors (≥$200): ${breakdown['large_individual_donors']['amount']:,.2f} ({breakdown['large_individual_donors']['percentage']}%)")
+                print(f"  Small Individual Donors (<$200): ${breakdown['small_individual_donors']['amount']:,.2f} ({breakdown['small_individual_donors']['percentage']}%)")
+                print(f"  Self-Funding: ${breakdown['self_funding']['amount']:,.2f} ({breakdown['self_funding']['percentage']}%)")
+                print(f"  ActBlue/WinRed Conduits: ${breakdown['conduits']['amount']:,.2f} ({breakdown['conduits']['percentage']}%)")
+                print(f"\n(All percentages are of total raised)")
             else:
                 print("No receipts found for this candidate yet (may be too early in cycle)")
         else:
