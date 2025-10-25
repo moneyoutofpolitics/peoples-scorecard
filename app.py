@@ -60,7 +60,7 @@ def analyze_candidate():
     candidate_party = request.args.get('party', '')
     candidate_state = request.args.get('state', '')
     cycle = int(request.args.get('cycle', 2026))
-    max_pages = int(request.args.get('max_pages', 10))
+    max_pages = int(request.args.get('max_pages', 10))  # Fetch 10 pages for comprehensive data
     
     if not candidate_id:
         return jsonify({'error': 'candidate_id parameter required'}), 400
@@ -77,11 +77,15 @@ def analyze_candidate():
         
         # Get receipts from principal committee
         principal_committee = committees[0]
+        print(f"Fetching receipts for {candidate_name} from committee {principal_committee['committee_id']}...")
+        
         receipts = fetcher.get_committee_receipts(
             principal_committee['committee_id'],
             cycle=cycle,
             max_pages=max_pages
         )
+        
+        print(f"Fetched {len(receipts)} receipts for {candidate_name}")
         
         if not receipts:
             return jsonify({
