@@ -27,13 +27,13 @@ class FECDataFetcher:
         self.rate_limit_delay = 0.1  # Small delay between requests to be respectful
         
     def _make_request(self, endpoint: str, params: Dict) -> Dict:
-        """Make a request to the FEC API with rate limiting"""
+        """Make a request to the FEC API with rate limiting and timeout"""
         params['api_key'] = self.api_key
         
         time.sleep(self.rate_limit_delay)
         
         url = f"{self.BASE_URL}/{endpoint}"
-        response = self.session.get(url, params=params)
+        response = self.session.get(url, params=params, timeout=10)  # 10 second timeout
         response.raise_for_status()
         
         return response.json()
