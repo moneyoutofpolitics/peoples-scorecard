@@ -222,6 +222,12 @@
             color: #333;
         }
         
+        .breakdown-item .percentage {
+            font-size: 0.9em;
+            color: #888;
+            margin-top: 5px;
+        }
+        
         .loading {
             text-align: center;
             padding: 40px;
@@ -413,27 +419,29 @@
         function displayAnalysis(data) {
             const { candidate, analysis, note } = data;
             
+            const breakdown = analysis.breakdown;
+            
             analysisResult.innerHTML = `
                 <h2 style="margin-bottom: 30px;">${candidate.name} (${candidate.party})</h2>
                 
                 <div class="big-money-display">
                     <h3 style="font-size: 1.5em; margin-bottom: 10px;">Big Money Percentage</h3>
                     <div class="big-money-percentage">${analysis.big_money_percentage}%</div>
-                    <p style="font-size: 1.2em; opacity: 0.9;">of non-grassroots contributions</p>
+                    <p style="font-size: 1.1em; opacity: 0.9;">of all contributions (excluding self-funding)</p>
                 </div>
                 
                 <div class="breakdown">
                     <div class="breakdown-item">
                         <h4>Total Raised</h4>
-                        <div class="amount">$${analysis.total_contributions.toLocaleString()}</div>
+                        <div class="amount">$${analysis.total_raised.toLocaleString()}</div>
                     </div>
                     <div class="breakdown-item">
                         <h4>Big Money (PACs + Large Donors)</h4>
                         <div class="amount">$${analysis.big_money_amount.toLocaleString()}</div>
                     </div>
                     <div class="breakdown-item">
-                        <h4>Small Donors (&lt;$200)</h4>
-                        <div class="amount">$${analysis.small_donor_amount.toLocaleString()}</div>
+                        <h4>Grassroots (&lt;$200)</h4>
+                        <div class="amount">$${analysis.grassroots_amount.toLocaleString()}</div>
                     </div>
                     <div class="breakdown-item">
                         <h4>Self-Funding</h4>
@@ -441,9 +449,52 @@
                     </div>
                 </div>
                 
+                <div style="margin-top: 40px;">
+                    <h3 style="font-size: 1.3em; margin-bottom: 20px; text-align: center;">Detailed Breakdown</h3>
+                    
+                    <div class="breakdown">
+                        <div class="breakdown-item">
+                            <h4>PACs</h4>
+                            <div class="amount">$${breakdown.pacs.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.pacs.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Party Committees</h4>
+                            <div class="amount">$${breakdown.party_committees.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.party_committees.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Other Candidates</h4>
+                            <div class="amount">$${breakdown.other_candidates.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.other_candidates.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Organizations</h4>
+                            <div class="amount">$${breakdown.organizations.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.organizations.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Large Individual Donors (≥$200)</h4>
+                            <div class="amount">$${breakdown.large_individual_donors.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.large_individual_donors.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Small Individual Donors (&lt;$200 + Conduits)</h4>
+                            <div class="amount">$${breakdown.grassroots_combined.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.grassroots_combined.percentage}% of total</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <h4>Self-Funding</h4>
+                            <div class="amount">$${breakdown.self_funding.amount.toLocaleString()}</div>
+                            <div class="percentage">${breakdown.self_funding.percentage}% of total</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="note">
                     ${note}<br>
-                    This analysis excludes small donors (under $200), self-funding, and conduit contributions (ActBlue/WinRed).
+                    Big Money % = PACs + Party Committees + Other Candidates + Organizations + Large Donors (≥$200).
+                    Grassroots includes small donors and ActBlue/WinRed conduit contributions.
                 </div>
             `;
         }
