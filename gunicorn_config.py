@@ -11,8 +11,8 @@ workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = "sync"
 
 # Timeout settings
-timeout = 120  # Increased to 120 seconds (2 minutes) to handle FEC API requests
-graceful_timeout = 120
+timeout = 180  # Increased to 180 seconds (3 minutes) to handle large FEC datasets
+graceful_timeout = 180
 keepalive = 5
 
 # Logging
