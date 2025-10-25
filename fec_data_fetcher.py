@@ -26,17 +26,34 @@ class FECDataFetcher:
         self.session = requests.Session()
         self.rate_limit_delay = 0.1  # Small delay between requests to be respectful
         
-    def _make_request(self, endpoint: str, params: Dict) -> Dict:
-        """Make a request to the FEC API with rate limiting and timeout"""
+    def _make_request(self, endpoint: str, params: Dict, max_retries: int = 3) -> Dict:
+        """Make a request to the FEC API with rate limiting, timeout, and retries"""
         params['api_key'] = self.api_key
         
-        time.sleep(self.rate_limit_delay)
-        
         url = f"{self.BASE_URL}/{endpoint}"
-        response = self.session.get(url, params=params, timeout=10)  # 10 second timeout
-        response.raise_for_status()
         
-        return response.json()
+        for attempt in range(max_retries):
+            try:
+                time.sleep(self.rate_limit_delay)
+                response = self.session.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    print(f"Request timeout, retrying... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(2)  # Wait 2 seconds before retry
+                    continue
+                else:
+                    raise
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    print(f"Request error: {e}, retrying... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(2)
+                    continue
+                else:
+                    raise
+        
+        raise Exception("Max retries exceeded")
     
     def search_candidates(self, name: str, cycle: int = 2026, office: str = None) -> List[Dict]:
         """
@@ -103,7 +120,10 @@ class FECDataFetcher:
             
             try:
                 data = self._make_request('schedules/schedule_a', params)
-            except requests.exceptions.HTTPError as e:
+            except requests.exceptions.Timeout:
+                print(f"Timeout on page {page}, using data from {page-1} pages")
+                break
+            except requests.exceptions.RequestException as e:
                 print(f"Error fetching page {page}: {e}")
                 break
                 
@@ -119,8 +139,10 @@ class FECDataFetcher:
                 break
                 
             page += 1
-            print(f"Fetched page {page-1}, total receipts so far: {len(all_receipts)}")
+            if page % 2 == 0:  # Log every 2 pages
+                print(f"Fetched {page-1} pages, {len(all_receipts)} receipts so far...")
             
+        print(f"Completed: Fetched {len(all_receipts)} total receipts from {page-1} pages")
         return all_receipts
     
     def get_candidate_summary(self, candidate_id: str, cycle: int = 2026) -> Dict:
